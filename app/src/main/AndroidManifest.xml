@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      Permission policy for Aegis Sentinel X.
+
+      Every permission below is required by a feature that is actually implemented and verified.
+      Notably ABSENT, by design:
+        * QUERY_ALL_PACKAGES  - Play-restricted. We use the <queries> element below instead, which
+                                is sufficient for launchable apps, and we degrade honestly when a
+                                package is not visible.
+        * BIND_ACCESSIBILITY_SERVICE - we do not implement an accessibility service. We only READ
+                                whether other apps hold accessibility access, which needs no
+                                permission (Settings.Secure). Requesting accessibility for
+                                monitoring would be disproportionate and is out of scope.
+        * READ_EXTERNAL_STORAGE / MANAGE_EXTERNAL_STORAGE - broad storage access is not requested.
+                                File monitoring is limited to user-selected trees via SAF.
+    -->
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Special access: user must grant it in Settings; we check it at runtime and degrade. -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+
+    <!--
+      Package visibility (Android 11+). We enumerate launchable apps, which is the supported,
+      non-Play-restricted approach. Apps without a launcher entry stay invisible and the UI says so.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
+
+    <application
+        android:name=".AegisApplication"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AegisSentinel"
+        android:enableOnBackInvokedCallback="true">
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.AegisSentinel">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          Monitoring service. specialUse is the correct type: this is continuous security
+          monitoring, which does not match dataSync (and would hit the Android 15+ 6-hour
+          dataSync timeout). The subtype value is declared for Play review.
+        -->
+        <service
+            android:name=".platform.service.AegisMonitorService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="On-device security monitoring: continuous local analysis of app,
+                    file and network telemetry to detect malicious behaviour. No data leaves the
+                    device." />
+        </service>
+
+        <!--
+          Local VpnService used ONLY for local flow observation. It routes to a local sink;
+          it never forwards traffic to a remote server. Requires explicit user consent via the
+          system VpnService.prepare() dialog.
+        -->
+        <service
+            android:name=".platform.service.AegisVpnService"
+            android:exported="false"
+            android:permission="android.permission.BIND_VPN_SERVICE">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
+
+        <receiver
+            android:name=".platform.receiver.BootCompletedReceiver"
+            android:exported="false"
+            android:directBootAware="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+          Package add/remove/replace. Not exported: these are protected system broadcasts.
+        -->
+        <receiver
+            android:name=".platform.receiver.PackageEventReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.PACKAGE_ADDED" />
+                <action android:name="android.intent.action.PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.PACKAGE_FULLY_REMOVED" />
+                <data android:scheme="package" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+
+</manifest>

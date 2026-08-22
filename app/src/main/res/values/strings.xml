@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Aegis Sentinel X</string>
+    <string name="channel_monitoring">Monitoring status</string>
+    <string name="channel_monitoring_desc">Ongoing notification while security monitoring is active.</string>
+    <string name="channel_alerts">Security alerts</string>
+    <string name="channel_alerts_desc">Notifications about suspicious application behaviour.</string>
+    <string name="monitor_full">Active monitoring — full analysis</string>
+    <string name="monitor_reduced">Active monitoring — reduced sampling to save power</string>
+    <string name="monitor_conservative">Active monitoring — conservative mode</string>
+    <string name="monitor_survival">Active monitoring — minimal mode (critical signals only)</string>
+</resources>

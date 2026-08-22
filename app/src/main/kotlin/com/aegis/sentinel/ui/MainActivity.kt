@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -38,7 +37,7 @@ private fun AegisApp() {
             color = MaterialTheme.colorScheme.background,
         ) {
             val vm: DashboardViewModel = viewModel()
-            DashboardScreen(viewModel = vm, modifier = Modifier.padding())
+            DashboardScreen(viewModel = vm, modifier = Modifier)
         }
     }
 }

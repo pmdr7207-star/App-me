@@ -69,7 +69,7 @@ object Sanitizer {
     fun sanitize(raw: String?, maxLength: Int = DEFAULT_MAX_LENGTH): Result {
         if (raw.isNullOrEmpty()) return Result("", 0, false)
 
-        var s = raw
+        var s: String = raw
         s = INVISIBLE_OR_BIDI.replace(s, "")
         s = CONTROL_CHARS.replace(s, " ")
         s = s.replace('\n', ' ').replace('\t', ' ')

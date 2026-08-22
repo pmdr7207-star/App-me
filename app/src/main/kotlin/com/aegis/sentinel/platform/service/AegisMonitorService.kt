@@ -117,7 +117,7 @@ class AegisMonitorService : LifecycleService() {
     private fun startForegroundSafely(mode: OperatingMode) {
         val notification = buildNotification(mode)
         runCatching {
-            ServiceCompat.startForeground(
+            androidx.core.app.ServiceCompat.startForeground(
                 this,
                 NOTIFICATION_ID,
                 notification,
@@ -170,17 +170,5 @@ class AegisMonitorService : LifecycleService() {
         fun stop(context: Context) {
             context.stopService(Intent(context, AegisMonitorService::class.java))
         }
-    }
-}
-
-/** Thin indirection so the foreground-start call site stays readable and testable. */
-private object ServiceCompat {
-    fun startForeground(
-        service: android.app.Service,
-        id: Int,
-        notification: Notification,
-        type: Int,
-    ) {
-        androidx.core.app.ServiceCompat.startForeground(service, id, notification, type)
     }
 }

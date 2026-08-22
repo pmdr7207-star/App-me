@@ -14,7 +14,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.FileInputStream
 import java.util.concurrent.atomic.AtomicLong
@@ -41,6 +40,7 @@ import java.util.concurrent.atomic.AtomicLong
 class AegisVpnService : VpnService() {
 
     private var tunnel: ParcelFileDescriptor? = null
+    private var observedPackage: String? = null
     private var scope: CoroutineScope? = null
     private val packetsObserved = AtomicLong(0)
 
@@ -72,9 +72,18 @@ class AegisVpnService : VpnService() {
             stopSelf()
             return
         }
-        observedPackages.forEach { pkg ->
-            runCatching { builder.addAllowedApplication(pkg) }
+        val allowed = observedPackages.filter { pkg ->
+            runCatching { builder.addAllowedApplication(pkg); true }.getOrDefault(false)
         }
+        if (allowed.isEmpty()) {
+            // Every requested package was rejected by the system; do not pretend to observe.
+            stopSelf()
+            return
+        }
+        // Attribution is only sound when exactly one app is in scope. With several allowed apps
+        // the tunnel cannot tell them apart, so we record the flow without a package rather than
+        // guessing.
+        observedPackage = allowed.singleOrNull()
 
         // Never route our own traffic through the tunnel.
         runCatching { builder.addDisallowedApplication(packageName) }
@@ -140,8 +149,6 @@ class AegisVpnService : VpnService() {
         runCatching { tunnel?.close() }
         tunnel = null
     }
-
-    private var observedPackage: String? = null
 
     companion object {
         private const val SESSION_NAME = "Aegis Flow Observation"

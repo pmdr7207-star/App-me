@@ -5,7 +5,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.aegis.sentinel.core.model.AccessClass
 import com.aegis.sentinel.core.model.Assessment
+import com.aegis.sentinel.core.fusion.EvidenceFusion
 import com.aegis.sentinel.core.model.Capability
+import com.aegis.sentinel.core.model.Evidence
 import com.aegis.sentinel.platform.AegisRuntime
 import com.aegis.sentinel.platform.capability.CapabilityDiscovery
 import com.aegis.sentinel.platform.prefs.AegisPreferences
@@ -60,24 +62,16 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
                 val inventory = AppInventory(getApplication())
                 val records = inventory.enumerate()
 
-                records.forEach { record ->
-                    inventory.analyze(record, now).forEach { evidence ->
-                        runtime.pipeline.threatGraph().ingestEvidence(evidence)
-                        runtime.evidenceStore.append(record.packageName, listOf(evidence), now)
-                    }
-                }
-
-                // Assess every package we produced evidence for, plus fuse pipeline evidence.
                 val assessments = records.mapNotNull { record ->
-                    val evidence = inventory.analyze(record, now) +
-                        runtime.pipeline.evidenceFor(record.packageName)
-                    if (evidence.isEmpty()) {
-                        null
-                    } else {
-                        runtime.pipeline.assess(record.packageName, now)
-                            .takeIf { it.supporting.isNotEmpty() || it.contradictions.isNotEmpty() }
-                            ?: fuseDirect(record.packageName, evidence, now)
+                    val staticEvidence = inventory.analyze(record, now)
+                    staticEvidence.forEach { runtime.pipeline.threatGraph().ingestEvidence(it) }
+                    if (staticEvidence.isNotEmpty()) {
+                        runtime.evidenceStore.append(record.packageName, staticEvidence, now)
                     }
+
+                    // Fuse the static posture evidence with anything the live pipeline observed.
+                    val combined = staticEvidence + runtime.pipeline.evidenceFor(record.packageName)
+                    if (combined.isEmpty()) null else fuse(record.packageName, combined, now)
                 }.sortedByDescending { it.score }
 
                 Triple(records.size, assessments, runtime.evidenceStore.verifyChain() >= 0)
@@ -94,11 +88,10 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun fuseDirect(
-        subject: String,
-        evidence: List<com.aegis.sentinel.core.model.Evidence>,
-        now: Long,
-    ): Assessment = com.aegis.sentinel.core.fusion.EvidenceFusion().assess(subject, evidence, now)
+    private val fusion = EvidenceFusion()
+
+    private fun fuse(subject: String, evidence: List<Evidence>, now: Long): Assessment =
+        fusion.assess(subject, evidence, now)
 
     fun setMonitoring(enabled: Boolean) {
         prefs.monitoringEnabled = enabled

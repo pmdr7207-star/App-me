@@ -7,10 +7,6 @@
 -keep class com.aegis.sentinel.platform.service.AegisVpnService { *; }
 -keep class com.aegis.sentinel.platform.receiver.BootCompletedReceiver { *; }
 -keep class com.aegis.sentinel.platform.receiver.PackageEventReceiver { *; }
--keep class com.aegis.sentinel.platform.work.* { *; }
-
-# WorkManager instantiates workers reflectively.
--keep class * extends androidx.work.ListenableWorker { public <init>(...); }
 
 # Keep line numbers so crash reports from an obfuscated release remain investigable.
 -keepattributes SourceFile,LineNumberTable
